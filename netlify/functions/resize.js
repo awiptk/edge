@@ -27,7 +27,12 @@ exports.handler = async (event) => {
   }
 
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "Netlify-Function/1.0",
+        "Accept": "image/*",
+      },
+    });
     if (!response.ok) {
       return {
         statusCode: response.status,
