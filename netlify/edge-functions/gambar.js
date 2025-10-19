@@ -15,7 +15,7 @@ export default async function (request, context) {
   const urlObj = new URL(request.url);
   let imageUrl, width, quality;
 
-  // Cek apakah request POST dengan JSON body
+  // Dukungan untuk POST dengan JSON
   if (request.method === "POST") {
     try {
       const body = await request.json();
@@ -29,7 +29,7 @@ export default async function (request, context) {
       });
     }
   } else {
-    // GET request dengan query params
+    // GET request
     imageUrl = urlObj.searchParams.get("url");
     width = urlObj.searchParams.get("w") ? parseInt(urlObj.searchParams.get("w"), 10) : null;
     quality = urlObj.searchParams.get("q") ? parseInt(urlObj.searchParams.get("q"), 10) : null;
@@ -62,9 +62,9 @@ export default async function (request, context) {
 
     return Response.redirect(functionUrl.toString(), 302);
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err.message) }, null, 2), {
+    return new Response(JSON.stringify({ error: String(err.message) }), {
       status: 500,
       headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
     });
   }
-}
+  }
