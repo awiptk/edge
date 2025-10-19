@@ -6,29 +6,44 @@ export default async function (request, context) {
       status: 204,
       headers: {
         "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET,OPTIONS",
+        "Access-Control-Allow-Methods": "GET,OPTIONS,POST",
         "Access-Control-Allow-Headers": "Range,Accept,Content-Type",
       },
     });
   }
 
   const urlObj = new URL(request.url);
-  const imageUrl = urlObj.searchParams.get("url");
-  if (!imageUrl) {
-    return new Response("Parameter ?url= wajib ada", { status: 400 });
+  let imageUrl, width, quality;
+
+  // Cek apakah request POST dengan JSON body
+  if (request.method === "POST") {
+    try {
+      const body = await request.json();
+      imageUrl = body.url;
+      width = body.w ? parseInt(body.w, 10) : null;
+      quality = body.q ? parseInt(body.q, 10) : null;
+    } catch (err) {
+      return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      });
+    }
+  } else {
+    // GET request dengan query params
+    imageUrl = urlObj.searchParams.get("url");
+    width = urlObj.searchParams.get("w") ? parseInt(urlObj.searchParams.get("w"), 10) : null;
+    quality = urlObj.searchParams.get("q") ? parseInt(urlObj.searchParams.get("q"), 10) : null;
   }
 
-  // Parse parameters
-  const w = urlObj.searchParams.get("w");
-  const q = urlObj.searchParams.get("q");
-  const width = w ? parseInt(w, 10) : null;
-  const quality = q ? parseInt(q, 10) : null;
+  if (!imageUrl) {
+    return new Response("Parameter url wajib ada", { status: 400 });
+  }
 
   // Validasi parameter
-  if (w && (isNaN(width) || width <= 0)) {
+  if (width && (isNaN(width) || width <= 0)) {
     return new Response("Parameter w harus angka > 0", { status: 400 });
   }
-  if (q && (isNaN(quality) || quality <= 0 || quality > 100)) {
+  if (quality && (isNaN(quality) || quality <= 0 || quality > 100)) {
     return new Response("Parameter q harus angka antara 0-100", { status: 400 });
   }
 
@@ -39,50 +54,17 @@ export default async function (request, context) {
       return new Response("URL gambar harus http atau https", { status: 400 });
     }
 
-    // Fetch gambar eksternal
-    const originRes = await fetch(imageUrl, { method: "GET", redirect: "follow" });
-    if (!originRes.ok) {
-      return new Response(`Origin responded with status ${originRes.status}`, { status: originRes.status });
-    }
+    // Redirect ke Netlify Function
+    const functionUrl = new URL("https://edgeproxy.netlify.app/.netlify/functions/resize");
+    functionUrl.searchParams.set("url", imageUrl);
+    if (width) functionUrl.searchParams.set("w", width.toString());
+    if (quality) functionUrl.searchParams.set("q", quality.toString());
 
-    const MAX_BYTES = 15 * 1024 * 1024; // 15 MB
-    const contentLength = originRes.headers.get("content-length");
-    if (contentLength && Number(contentLength) > MAX_BYTES) {
-      return new Response("Image terlalu besar", { status: 413 });
-    }
-
-    const arrayBuffer = await originRes.arrayBuffer();
-    if (arrayBuffer.byteLength > MAX_BYTES) {
-      return new Response("Image terlalu besar", { status: 413 });
-    }
-
-    // Kembalikan gambar dengan parameter transformasi
-    const responseHeaders = {
-      "Content-Type": originRes.headers.get("content-type") || "image/*",
-      "Cache-Control": "public, max-age=86400",
-      "Access-Control-Allow-Origin": "*",
-    };
-
-    // Terapkan transformasi jika ada w atau q
-    if (width || quality) {
-      // Catatan: Netlify Image CDN tidak langsung mendukung gambar eksternal,
-      // jadi kita langsung kembalikan gambar dengan header transformasi simulasi
-      responseHeaders["X-Edge-Resize"] = `w=${width || ""};q=${quality || ""}`;
-      return new Response(arrayBuffer, {
-        status: 200,
-        headers: responseHeaders,
-      });
-    }
-
-    // Jika tidak ada transformasi, kembalikan asli
-    return new Response(arrayBuffer, {
-      status: 200,
-      headers: responseHeaders,
-    });
+    return Response.redirect(functionUrl.toString(), 302);
   } catch (err) {
     return new Response(JSON.stringify({ error: String(err.message) }, null, 2), {
       status: 500,
       headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
     });
   }
-    }
+}
