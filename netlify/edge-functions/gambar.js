@@ -1,6 +1,5 @@
 // netlify/edge-functions/gambar.js
 export default async function (request, context) {
-  // Preflight / CORS
   if (request.method === "OPTIONS") {
     return new Response(null, {
       status: 204,
@@ -15,7 +14,6 @@ export default async function (request, context) {
   const urlObj = new URL(request.url);
   let imageUrl, width, quality;
 
-  // Dukungan untuk POST dengan JSON
   if (request.method === "POST") {
     try {
       const body = await request.json();
@@ -29,7 +27,6 @@ export default async function (request, context) {
       });
     }
   } else {
-    // GET request
     imageUrl = urlObj.searchParams.get("url");
     width = urlObj.searchParams.get("w") ? parseInt(urlObj.searchParams.get("w"), 10) : null;
     quality = urlObj.searchParams.get("q") ? parseInt(urlObj.searchParams.get("q"), 10) : null;
@@ -39,7 +36,6 @@ export default async function (request, context) {
     return new Response("Parameter url wajib ada", { status: 400 });
   }
 
-  // Validasi parameter
   if (width && (isNaN(width) || width <= 0)) {
     return new Response("Parameter w harus angka > 0", { status: 400 });
   }
@@ -48,23 +44,40 @@ export default async function (request, context) {
   }
 
   try {
-    // Validasi URL
     const imageUrlObj = new URL(imageUrl);
     if (!["http:", "https:"].includes(imageUrlObj.protocol)) {
       return new Response("URL gambar harus http atau https", { status: 400 });
     }
 
-    // Redirect ke Netlify Function
+    // Bangun URL Netlify Function
     const functionUrl = new URL("https://edgeproxy.netlify.app/.netlify/functions/resize");
     functionUrl.searchParams.set("url", imageUrl);
     if (width) functionUrl.searchParams.set("w", width.toString());
     if (quality) functionUrl.searchParams.set("q", quality.toString());
 
-    return Response.redirect(functionUrl.toString(), 302);
+    // Fetch dari Netlify Function langsung
+    const response = await fetch(functionUrl.toString());
+    if (!response.ok) {
+      return new Response(JSON.stringify({ error: `Netlify Function responded with status ${response.status}` }), {
+        status: response.status,
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      });
+    }
+
+    const buffer = await response.arrayBuffer();
+    return new Response(buffer, {
+      status: 200,
+      headers: {
+        "Content-Type": response.headers.get("content-type") || "image/webp",
+        "Cache-Control": "public, max-age=86400",
+        "Access-Control-Allow-Origin": "*",
+        "X-Resize": `w=${width || ""};q=${quality || ""}`,
+      },
+    });
   } catch (err) {
     return new Response(JSON.stringify({ error: String(err.message) }), {
       status: 500,
       headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
     });
   }
-  }
+}
