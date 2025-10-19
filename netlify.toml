@@ -1,7 +1,14 @@
 [build]
-  publish = "."
-  command = "echo 'No build step for this example'"
+  command = "npm install"
+  functions = "netlify/functions"
+  edge_functions = "netlify/edge-functions"
 
 [[edge_functions]]
+  path = "/gambar"
   function = "gambar"
-  path = "/gambar/*"
+
+[functions]
+  node_bundler = "esbuild"
+
+[build.environment]
+  NODE_VERSION = "22"
