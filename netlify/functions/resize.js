@@ -2,7 +2,7 @@
 const sharp = require("sharp");
 
 exports.handler = async (event) => {
-  console.log("Netlify Function /resize triggered!"); // Log untuk test
+  console.log("Netlify Function /resize triggered!");
   console.log("Query params:", event.queryStringParameters);
 
   const { url, w = "300", q = "80" } = event.queryStringParameters;
@@ -36,15 +36,18 @@ exports.handler = async (event) => {
     console.log("Fetching image from:", url);
     const response = await fetch(url, {
       headers: {
-        "User-Agent": "Netlify-Function/1.0",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept": "image/*",
+        "Referer": "https://delivery.shngm.id/", // Sesuaikan dengan domain asal
+        "Accept-Language": "en-US,en;q=0.9",
+        "Connection": "keep-alive",
       },
     });
     if (!response.ok) {
-      console.error("Fetch failed with status:", response.status);
+      console.error("Fetch failed with status:", response.status, "Status text:", response.statusText);
       return {
         statusCode: response.status,
-        body: JSON.stringify({ error: `Origin responded with status ${response.status}` }),
+        body: JSON.stringify({ error: `Origin responded with status ${response.status}: ${response.statusText}` }),
       };
     }
 
