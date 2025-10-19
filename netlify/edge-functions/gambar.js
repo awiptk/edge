@@ -1,12 +1,13 @@
 // netlify/edge-functions/gambar.js
 export default async function (request, context) {
+  // Preflight / CORS
   if (request.method === "OPTIONS") {
     return new Response(null, {
       status: 204,
       headers: {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET,OPTIONS,POST",
-        "Access-Control-Allow-Headers": "Range,Accept,Content-Type",
+        "Access-Control-Allow-Headers": "Range,Accept,Content-Type,X-Netlify-Function-Access",
       },
     });
   }
@@ -14,6 +15,7 @@ export default async function (request, context) {
   const urlObj = new URL(request.url);
   let imageUrl, width, quality;
 
+  // Dukungan untuk POST dengan JSON
   if (request.method === "POST") {
     try {
       const body = await request.json();
@@ -27,6 +29,7 @@ export default async function (request, context) {
       });
     }
   } else {
+    // GET request
     imageUrl = urlObj.searchParams.get("url");
     width = urlObj.searchParams.get("w") ? parseInt(urlObj.searchParams.get("w"), 10) : null;
     quality = urlObj.searchParams.get("q") ? parseInt(urlObj.searchParams.get("q"), 10) : null;
@@ -36,6 +39,7 @@ export default async function (request, context) {
     return new Response("Parameter url wajib ada", { status: 400 });
   }
 
+  // Validasi parameter
   if (width && (isNaN(width) || width <= 0)) {
     return new Response("Parameter w harus angka > 0", { status: 400 });
   }
@@ -44,6 +48,7 @@ export default async function (request, context) {
   }
 
   try {
+    // Validasi URL
     const imageUrlObj = new URL(imageUrl);
     if (!["http:", "https:"].includes(imageUrlObj.protocol)) {
       return new Response("URL gambar harus http atau https", { status: 400 });
@@ -55,8 +60,15 @@ export default async function (request, context) {
     if (width) functionUrl.searchParams.set("w", width.toString());
     if (quality) functionUrl.searchParams.set("q", quality.toString());
 
-    // Fetch dari Netlify Function langsung
-    const response = await fetch(functionUrl.toString());
+    // Tambah header untuk komunikasi ke Netlify Function
+    const headers = {
+      "Accept": "image/*",
+      "User-Agent": "Netlify-Edge-Function/1.0",
+      "X-Netlify-Function-Access": "internal", // Header khusus untuk akses internal
+    };
+
+    // Fetch dari Netlify Function
+    const response = await fetch(functionUrl.toString(), { headers });
     if (!response.ok) {
       return new Response(JSON.stringify({ error: `Netlify Function responded with status ${response.status}` }), {
         status: response.status,
@@ -80,4 +92,4 @@ export default async function (request, context) {
       headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
     });
   }
-}
+      }
