@@ -1,0 +1,7 @@
+[build]
+  publish = "."
+  command = "echo 'No build step for this example'"
+
+[[edge_functions]]
+  function = "gambar"
+  path = "/gambar/*"
