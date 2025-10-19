@@ -1,11 +1,11 @@
 [build]
   command = "npm install"
   functions = "netlify/functions"
-  edge_functions = "netlify/edge-functions"
+  edge_functions = "netlify/edge-functions"  # Folder Edge Functions
 
-[[edge_functions]]
-  path = "/gambar"
-  function = "gambar"
+[[edge_functions]]  # Deklarasi path untuk Edge Function
+  function = "gambar"  # Nama file tanpa .js
+  path = "/gambar"     # Path yang harus dipanggil: /gambar
 
 [functions]
   node_bundler = "esbuild"
